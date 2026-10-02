@@ -1,4 +1,4 @@
-export type TerritoryLevel = 'city' | 'region';
+export type TerritoryLevel = 'city' | 'region' | 'district';
 export type TerritoryRole = 'registration' | 'project' | 'both' | 'unknown';
 
 export type ProgramStatus = 
@@ -106,6 +106,10 @@ export interface UserQuery {
   location_name: string;
   location_level: TerritoryLevel;
   location_role: TerritoryRole;
+  region_id?: string;
+  region_name?: string;
+  district_id?: string;
+  district_name?: string;
   settlement_type?: 'republican_city' | 'regional_city' | 'monotown' | 'village' | 'any';
   
   // Step 2 Clarification fields

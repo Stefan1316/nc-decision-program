@@ -1,6 +1,7 @@
 import { damuKnowledgeBase } from '../data/damuDatabase';
 import { DamuProgram, ProgramMatchResult, ProgramStatus, UserQuery } from '../types/damu';
 import { checkOrleuEligibility } from '../data/orleuPriorityOkeds';
+import { checkIskerDistrictEligibility } from './iskerEligibility';
 
 export interface EvaluationSummary {
   query: UserQuery;
@@ -119,13 +120,10 @@ export function evaluatePrograms(query: UserQuery): EvaluationSummary {
       }
     } 
     
-    // Isker Aymak priority list
+    // Isker Aymak: точная проверка по региону + району/городу + иерархии ОКЭД
     else if (prog.id === 'damu.subsidy.isker_aymak') {
       const isExcluded23 = cleanCode.startsWith('23.63');
       const isExcluded24 = ['24.10', '24.46', '24.51', '24.52'].some(ex => cleanCode.startsWith(ex));
-      const oked2 = cleanCode.slice(0, 2);
-      const iskerPriorityList = ['10', '11.06', '11.07', '13', '14', '15', '16', '17', '20', '21', '22', '23', '24', '25', '26', '27', '31', '32'];
-      const isPriority = iskerPriorityList.some(item => cleanCode.startsWith(item) || item === oked2);
 
       if (isExcluded23) {
         okedMatchLevel = 'excluded';
@@ -133,12 +131,41 @@ export function evaluatePrograms(query: UserQuery): EvaluationSummary {
       } else if (isExcluded24) {
         okedMatchLevel = 'excluded';
         restrictions.push(`ОКЭД ${cleanCode} (первичная металлургия) исключен из программы «Іскер аймақ».`);
-      } else if (isPriority) {
-        okedMatchLevel = 'exact';
-        matched_reasons.push(`ОКЭД ${cleanCode} входит в утвержденный приоритетный перечень отраслей обрабатывающей промышленности программы «Іскер аймақ».`);
+      } else if (query.region_id) {
+        const iskerCheck = checkIskerDistrictEligibility(
+          query.region_id,
+          query.district_name,
+          cleanCode
+        );
+
+        if (query.district_name) {
+          if (!iskerCheck.districtFound) {
+            okedMatchLevel = 'verification_needed';
+            missing_inputs.push('Проверка выбранного города/района по официальной матрице МИО');
+            matched_reasons.push(iskerCheck.reason);
+          } else if (iskerCheck.matched) {
+            okedMatchLevel = 'exact';
+            matched_reasons.push(iskerCheck.reason);
+          } else {
+            okedMatchLevel = 'excluded';
+            restrictions.push(iskerCheck.reason);
+          }
+        } else {
+          if (iskerCheck.matched) {
+            okedMatchLevel = 'compatible';
+            matched_reasons.push(iskerCheck.reason);
+            missing_inputs.push('Конкретный город/район для точной проверки «Іскер аймақ»');
+            clarificationSet.add('location');
+          } else {
+            okedMatchLevel = 'excluded';
+            restrictions.push(iskerCheck.reason);
+          }
+        }
       } else {
-        okedMatchLevel = 'compatible';
-        matched_reasons.push(`ОКЭД ${cleanCode} не входит в прямой приоритетный список программы «Іскер аймақ». Возможно рассмотрение по региональным квотам.`);
+        okedMatchLevel = 'verification_needed';
+        missing_inputs.push('Регион и конкретный город/район для проверки матрицы «Іскер аймақ»');
+        matched_reasons.push('Для программы «Іскер аймақ» требуется территориальная проверка по матрице МИО.');
+        clarificationSet.add('location');
       }
     }
 

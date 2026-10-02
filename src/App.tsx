@@ -21,6 +21,10 @@ const INITIAL_QUERY: UserQuery = {
   location_name: '',
   location_level: 'city',
   location_role: 'unknown',
+  region_id: '',
+  region_name: '',
+  district_id: '',
+  district_name: '',
   settlement_type: 'any',
   entity_type: '',
   business_status: '',
@@ -81,11 +85,15 @@ export default function App() {
   };
 
   // Выбор региона на интерактивной карте МИО
-  const handleSelectRegionFromMap = (regionName: string, level: 'city' | 'region') => {
+  const handleSelectRegionFromMap = (regionName: string, level: 'city' | 'region', regionId?: string) => {
     setQuery(prev => ({
       ...prev,
       location_name: regionName,
-      location_level: level
+      location_level: level,
+      region_id: regionId || prev.region_id,
+      region_name: regionName,
+      district_id: '',
+      district_name: ''
     }));
   };
 
@@ -303,9 +311,14 @@ export default function App() {
               currentOkedCode={query.oked_code}
               onSelectRegion={handleSelectRegionFromMap}
               onSelectOked={(code) => handleQueryChange({ oked_code: code })}
-              onSelectDistrict={(districtName, settlementType) => handleQueryChange({ 
-                location_name: districtName, 
-                settlement_type: settlementType || query.settlement_type 
+              onSelectDistrict={(districtName, settlementType, districtId, regionId, regionName) => handleQueryChange({
+                location_name: districtName,
+                location_level: 'district',
+                region_id: regionId || query.region_id,
+                region_name: regionName || query.region_name,
+                district_id: districtId || '',
+                district_name: districtName,
+                settlement_type: settlementType || query.settlement_type
               })}
               theme={theme}
               language={language}
