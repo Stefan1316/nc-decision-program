@@ -27,9 +27,9 @@ import {
 interface MioPrioritiesMapProps {
   currentLocationName: string;
   currentOkedCode: string;
-  onSelectRegion: (regionName: string, level: 'city' | 'region') => void;
+  onSelectRegion: (regionName: string, level: 'city' | 'region', regionId?: string) => void;
   onSelectOked?: (code: string) => void;
-  onSelectDistrict?: (districtName: string, settlementType?: 'monotown' | 'village' | 'regional_city' | 'republican_city') => void;
+  onSelectDistrict?: (districtName: string, settlementType?: 'monotown' | 'village' | 'regional_city' | 'republican_city', districtId?: string, regionId?: string, regionName?: string) => void;
   theme: ThemeMode;
   language: Language;
   onClose?: () => void;
@@ -204,7 +204,7 @@ export const MioPrioritiesMap: React.FC<MioPrioritiesMapProps> = ({
   const handleApplyToQuery = () => {
     if (!selectedRegionDef) return;
     const level = selectedRegionDef.isCity ? 'city' : 'region';
-    onSelectRegion(selectedRegionDef.name, level);
+    onSelectRegion(selectedRegionDef.name, level, selectedRegionId);
   };
 
   const handleSelectSpecificOked = (code: string) => {
@@ -215,16 +215,30 @@ export const MioPrioritiesMap: React.FC<MioPrioritiesMapProps> = ({
   };
 
   const handleSelectDistrictRow = (district: MioDistrictItem) => {
+    if (!selectedRegionDef) return;
+
+    const isRepublicanCityRegion = ['astana-city', 'almaty-city', 'shymkent-city'].includes(selectedRegionId);
+    const settlementType = district.type === 'monotown'
+      ? 'monotown'
+      : district.type === 'city'
+        ? (isRepublicanCityRegion ? 'republican_city' : 'regional_city')
+        : 'village';
+
+    // Сначала фиксируем регион, затем конкретную территорию.
+    onSelectRegion(
+      selectedRegionDef.name,
+      selectedRegionDef.isCity ? 'city' : 'region',
+      selectedRegionId
+    );
+
     if (onSelectDistrict) {
-      const settlementType = district.type === 'monotown' 
-        ? 'monotown' 
-        : district.type === 'city' 
-          ? 'republican_city' 
-          : 'village';
-      onSelectDistrict(district.name, settlementType);
-    }
-    if (selectedRegionDef) {
-      onSelectRegion(selectedRegionDef.name, selectedRegionDef.isCity ? 'city' : 'region');
+      onSelectDistrict(
+        district.name,
+        settlementType,
+        district.id,
+        selectedRegionId,
+        selectedRegionDef.name
+      );
     }
   };
 
