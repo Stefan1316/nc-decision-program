@@ -22,26 +22,43 @@ export function normalizeOked(code: string): { cleanCode: string; isBroad: boole
   if (!trimmed) {
     return { cleanCode: '', isBroad: true, warning: 'Код ОКЭД не указан' };
   }
-  
-  // Single letter section like 'C', 'A', 'G'
-  if (/^[A-Za-zА-Яа-я]$/i.test(trimmed)) {
+
+  // Единая нормализация пользовательского ввода:
+  // 03,22 -> 03.22; 0322 -> 03.22; 03 22 -> 03.22.
+  // Буквенные секции (A, C, G и т.д.) сохраняются как буквенный раздел.
+  const compact = trimmed.replace(/\s+/g, '').replace(/,/g, '.').toUpperCase();
+
+  if (/^[A-ZА-Я]$/i.test(compact)) {
     return {
-      cleanCode: trimmed.toUpperCase(),
+      cleanCode: compact,
       isBroad: true,
-      warning: `Указан только буквенный раздел («${trimmed.toUpperCase()}»). Для точного подбора программ Фонда Damu требуется указать 4- или 5-значный код ОКЭД.`
+      warning: `Указан только буквенный раздел («${compact}»). Для точного подбора программ Фонда Damu укажите детальный код ОКЭД; раздел можно использовать для предварительного анализа.`
     };
   }
 
-  // Pure 2-digit class like '10' or '46'
-  if (/^\d{2}$/.test(trimmed)) {
+  let normalized = compact;
+  if (/^\d{4,5}$/.test(compact)) {
+    normalized = `${compact.slice(0, 2)}.${compact.slice(2)}`;
+  }
+
+  // Оставляем только стандартный формат NN, NN.NN или NN.NNN.
+  if (!/^\d{2}(?:\.\d{2,3})?$/.test(normalized)) {
     return {
-      cleanCode: trimmed,
+      cleanCode: normalized,
       isBroad: true,
-      warning: `Указан 2-значный раздел («${trimmed}»). Результат носит предварительный характер; отдельные программы требуют детальный подкласс (например, 10.51 или 46.73).`
+      warning: `Формат ОКЭД «${trimmed}» не распознан. Используйте, например: 03.22, 03,22, 0322 или буквенный раздел C.`
     };
   }
 
-  return { cleanCode: trimmed, isBroad: false };
+  if (/^\d{2}$/.test(normalized)) {
+    return {
+      cleanCode: normalized,
+      isBroad: true,
+      warning: `Указан 2-значный раздел («${normalized}»). Результат носит предварительный характер; отдельные программы требуют детальный подкласс (например, 10.51 или 46.73).`
+    };
+  }
+
+  return { cleanCode: normalized, isBroad: false };
 }
 
 export function isRepublicanCity(locationName: string, level?: string): boolean {
