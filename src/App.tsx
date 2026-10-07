@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { UserQuery } from './types/damu';
 import { evaluatePrograms } from './logic/decisionEngine';
 import { Header } from './components/Header';
@@ -35,13 +35,26 @@ const INITIAL_QUERY: UserQuery = {
 };
 
 export default function App() {
-  const [query, setQuery] = useState<UserQuery>(INITIAL_QUERY);
+  const [query, setQuery] = useState<UserQuery>(() => {
+    try {
+      const saved = localStorage.getItem('nc-decision.query');
+      return saved ? { ...INITIAL_QUERY, ...JSON.parse(saved) } : INITIAL_QUERY;
+    } catch {
+      return INITIAL_QUERY;
+    }
+  });
 
   // Тема оформления: 'neon' (глубокий черный фон с неон-свечением) или 'light' (бело-чёрная)
-  const [theme, setTheme] = useState<ThemeMode>('neon');
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem('nc-decision.theme');
+    return saved === 'light' ? 'light' : 'neon';
+  });
 
   // Язык интерфейса: 'ru' (по умолчанию) или 'kk' (казахский)
-  const [language, setLanguage] = useState<Language>('ru');
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('nc-decision.language');
+    return saved === 'kk' || saved === 'en' || saved === 'zh' ? saved : 'ru';
+  });
 
   // Модальные окна
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -49,7 +62,22 @@ export default function App() {
   const [isAcceptanceTestsOpen, setIsAcceptanceTestsOpen] = useState(false);
 
   // Режим работы: 'map' (интерактивная карта Даму), 'search' (поисковик) или 'split' (совмещенный)
-  const [activeView, setActiveView] = useState<'map' | 'search' | 'split'>('split');
+  const [activeView, setActiveView] = useState<'map' | 'search' | 'split'>(() => {
+    const saved = localStorage.getItem('nc-decision.activeView');
+    return saved === 'map' || saved === 'search' || saved === 'split' ? saved : 'split';
+  });
+
+  // v2 usability: сохраняем рабочий контекст локально, чтобы пользователь
+  // не терял введённые параметры при случайном обновлении страницы.
+  useEffect(() => {
+    localStorage.setItem('nc-decision.query', JSON.stringify(query));
+  }, [query]);
+
+  useEffect(() => {
+    localStorage.setItem('nc-decision.theme', theme);
+    localStorage.setItem('nc-decision.language', language);
+    localStorage.setItem('nc-decision.activeView', activeView);
+  }, [theme, language, activeView]);
 
   const t = translations[language];
   const isLight = theme === 'light';
@@ -61,6 +89,7 @@ export default function App() {
 
   const handleReset = () => {
     setQuery(INITIAL_QUERY);
+    localStorage.removeItem('nc-decision.query');
   };
 
   const handleToggleTheme = () => {
